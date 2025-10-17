@@ -3,6 +3,7 @@
     {
       "rut": "12345678-9",
       "name": "Juan Perez",
+      "nfcUid": "",
       "course": "3B",
       "grades": {
         "math": 6.5,

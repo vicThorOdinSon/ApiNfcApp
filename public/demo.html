@@ -1,0 +1,130 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Demo NFC API</title>
+  <style>body{font-family:Arial;max-width:900px;margin:20px} label{display:block;margin-top:8px} input,button,textarea{margin-top:6px;padding:6px;width:100%} .row{display:flex;gap:10px} .col{flex:1}</style>
+</head>
+<body>
+  <h1>Demo NFC API</h1>
+
+  <section>
+    <h2>1. Vincular etiqueta a alumno (y crear apoderado opcional)</h2>
+    <label>UID
+      <input id="link-uid" placeholder="UID12345" />
+    </label>
+    <label>RUT del alumno
+      <input id="link-rut" placeholder="12345678-9" />
+    </label>
+    <label>Email (opcional para crear apoderado)
+      <input id="link-email" placeholder="maria@example.com" />
+    </label>
+    <label>Nombre (opcional)
+      <input id="link-name" />
+    </label>
+    <label>Password (opcional)
+      <input id="link-password" type="password" />
+    </label>
+    <button id="btn-link">Vincular</button>
+    <pre id="link-result"></pre>
+  </section>
+
+  <section>
+    <h2>2. Buscar alumno por UID (público)</h2>
+    <label>UID
+      <input id="find-uid" placeholder="UID12345" />
+    </label>
+    <button id="btn-find">Buscar</button>
+    <pre id="find-result"></pre>
+  </section>
+
+  <section>
+    <h2>3. Registrar apoderado por RUT (sin NFC)</h2>
+    <label>RUT del alumno
+      <input id="reg-rut" placeholder="12345678-9" />
+    </label>
+    <label>Email
+      <input id="reg-email" />
+    </label>
+    <label>Nombre
+      <input id="reg-name" />
+    </label>
+    <label>Password
+      <input id="reg-password" type="password" />
+    </label>
+    <button id="btn-reg">Registrar</button>
+    <pre id="reg-result"></pre>
+  </section>
+
+  <section>
+    <h2>4. Login apoderado</h2>
+    <label>Email
+      <input id="login-email" />
+    </label>
+    <label>Password
+      <input id="login-password" type="password" />
+    </label>
+    <button id="btn-login">Login</button>
+    <pre id="login-result"></pre>
+  </section>
+
+  <section>
+    <h2>5. Consultar info académica (con token)</h2>
+    <label>Token
+      <input id="token" placeholder="pega aquí el token del login" />
+    </label>
+    <label>RUT del alumno
+      <input id="info-rut" placeholder="12345678-9" />
+    </label>
+    <button id="btn-info">Consultar</button>
+    <pre id="info-result"></pre>
+  </section>
+
+<script>
+const base = '';
+
+document.getElementById('btn-link').onclick = async () => {
+  const nfcUid = document.getElementById('link-uid').value;
+  const rutStudent = document.getElementById('link-rut').value;
+  const email = document.getElementById('link-email').value;
+  const name = document.getElementById('link-name').value;
+  const password = document.getElementById('link-password').value;
+  const body = { nfcUid, rutStudent };
+  if (email || name || password) { body.email = email; body.name = name; body.password = password; }
+  const res = await fetch(base + '/nfc/link', { method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  document.getElementById('link-result').textContent = await res.text();
+};
+
+document.getElementById('btn-find').onclick = async () => {
+  const uid = document.getElementById('find-uid').value;
+  const res = await fetch(base + '/nfc/' + encodeURIComponent(uid) + '/student');
+  document.getElementById('find-result').textContent = await res.text();
+};
+
+document.getElementById('btn-reg').onclick = async () => {
+  const rutStudent = document.getElementById('reg-rut').value;
+  const email = document.getElementById('reg-email').value;
+  const name = document.getElementById('reg-name').value;
+  const password = document.getElementById('reg-password').value;
+  const res = await fetch(base + '/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rutStudent, email, name, password }) });
+  document.getElementById('reg-result').textContent = await res.text();
+};
+
+document.getElementById('btn-login').onclick = async () => {
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  const res = await fetch(base + '/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
+  const txt = await res.text();
+  document.getElementById('login-result').textContent = txt;
+  try { const j = JSON.parse(txt); if (j.token) document.getElementById('token').value = j.token; } catch(e){}
+};
+
+document.getElementById('btn-info').onclick = async () => {
+  const token = document.getElementById('token').value;
+  const rut = document.getElementById('info-rut').value;
+  const res = await fetch(base + '/students/' + encodeURIComponent(rut) + '/academic-info', { headers: { 'Authorization': 'Bearer ' + token } });
+  document.getElementById('info-result').textContent = await res.text();
+};
+</script>
+</body>
+</html>

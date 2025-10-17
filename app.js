@@ -9,7 +9,15 @@ const app = express();
 const DATA_PATH = path.join(__dirname, 'data.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
 
+// In production, require a real JWT_SECRET
+if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'dev_secret_change_me')) {
+  console.error('FATAL: process.env.JWT_SECRET must be set in production');
+  process.exit(1);
+}
+
 app.use(express.json());
+// Serve a small demo UI to test the API in the browser
+app.use(express.static(path.join(__dirname, 'public')));
 
 function readData() {
   try {
@@ -96,6 +104,59 @@ app.get('/students/:rut/academic-info', authMiddleware, (req, res) => {
   if (!student) return res.status(404).json({ error: 'Student not found' });
 
   // Return only academic fields
+  const academic = {
+    rut: student.rut,
+    name: student.name,
+    course: student.course,
+    grades: student.grades
+  };
+  res.json({ student: academic });
+});
+
+// NFC: Link a guardian and/or link a tag to a student
+// POST /nfc/link
+// Body options:
+//  - { nfcUid, rutStudent, email, password, name } -> link tag to student and create guardian
+//  - { nfcUid, rutStudent } -> just link tag to student (requires no auth)
+app.post('/nfc/link', (req, res) => {
+  const { nfcUid, rutStudent, email, password, name } = req.body;
+  if (!nfcUid || !rutStudent) return res.status(400).json({ error: 'nfcUid and rutStudent are required' });
+
+  const data = readData();
+  const student = data.students.find(s => s.rut === rutStudent);
+  if (!student) return res.status(404).json({ error: 'Student not found' });
+
+  // Link the tag to the student
+  student.nfcUid = nfcUid;
+
+  // Optionally create guardian linked to this student
+  if (email || password || name) {
+    if (!email || !password || !name) return res.status(400).json({ error: 'email, password and name are required to create guardian' });
+    const existing = data.guardians.find(g => g.email === email);
+    if (existing) return res.status(409).json({ error: 'Guardian already registered' });
+    const salt = bcrypt.genSaltSync(10);
+    const hash = bcrypt.hashSync(password, salt);
+    const guardian = {
+      id: Date.now().toString(),
+      name,
+      email,
+      passwordHash: hash,
+      studentRut: rutStudent,
+      createdAt: new Date().toISOString()
+    };
+    data.guardians.push(guardian);
+  }
+
+  writeData(data);
+  res.json({ message: 'Linked NFC tag to student', nfcUid, studentRut: rutStudent });
+});
+
+// NFC: get student by tag UID (public by default). If you want it protected, wrap with authMiddleware.
+app.get('/nfc/:uid/student', (req, res) => {
+  const uid = req.params.uid;
+  const data = readData();
+  const student = data.students.find(s => s.nfcUid === uid);
+  if (!student) return res.status(404).json({ error: 'Student not found for this UID' });
   const academic = {
     rut: student.rut,
     name: student.name,
