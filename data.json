@@ -1,0 +1,14 @@
+{
+  "students": [
+    {
+      "rut": "12345678-9",
+      "name": "Juan Perez",
+      "course": "3B",
+      "grades": {
+        "math": 6.5,
+        "language": 5.8
+      }
+    }
+  ],
+  "guardians": []
+}
